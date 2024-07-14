@@ -1,160 +1,102 @@
-import { Statistic, message, Card, Typography, Space, Row, Col } from 'antd'
-import React, { useEffect, useState } from 'react'
-import axios from 'axios'
-import { Bar, Doughnut } from 'react-chartjs-2'
+import { Statistic, message } from 'antd';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS } from 'chart.js/auto';
 
-const { Title } = Typography;
+const Stats = ({ month, monthText }) => {
+  const [data, setData] = useState();
+  const [loading, setLoading] = useState(false);
 
-export default function Stats({ month, monthText }) {
-    const [data, setData] = useState();
-    const [loading, setLoading] = useState(false);
-    
-    const getData = async () => {
-        try {
-            setLoading(true);
-            const res = await axios.get(`https://roxiler-pvpf.onrender.com/combined-data?month=${month}`);
-            setLoading(false);
-            setData(res.data);
-            message.success('Data loaded successfully');
-        } catch (error) {
-            console.log(error);
-            message.error('Error loading data');
-        }
+  const getData = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`https://roxiler-pvpf.onrender.com/combined-data?month=${month}`);
+      setData(res.data);
+      message.success('Data loaded successfully');
+    } catch (error) {
+      console.error(error);
+      message.error('Error loading data');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    useEffect(() => {
-        getData();
-        return () => {
-            setData(null);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [month])
+  useEffect(() => {
+    getData();
+    return () => setData(null);
+  }, [month]);
 
-    return (
-        <Card>
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Title level={2}>Stats for {monthText}</Title>
+  return (
+    <>
+      <h2>Stats for {monthText}</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '48px' }}>
+        <div style={{ minWidth: '720px' }}>
+          <Totals stats={data?.statsData} loading={loading} />
+          {data && <BarChart data={data?.barChartData} />}
+        </div>
+        {data && <PieChart data={data?.pieChartData} />}
+      </div>
+    </>
+  );
+};
 
-                <Row gutter={[24, 24]}>
-                    <Col xs={24} lg={16}>
-                        <Totals stats={data?.statsData} loading={loading} />
-                        {data && <BarChart data={data?.barChartData} />}
-                    </Col>
-                    <Col xs={24} lg={8}>
-                        {data && <PieChart data={data?.pieChartData} />}
-                    </Col>
-                </Row>
-            </Space>
-        </Card>
-    )
-}
+const Totals = ({ stats, loading }) => (
+  <div className='stats' style={{ display: 'flex', justifyContent: 'space-between', maxWidth: '900px', padding: '12px 0', borderTop: '1px solid #dadada', borderBottom: '1px solid #dadada' }}>
+    <Statistic valueStyle={{ fontSize: '32px' }} title="Total Sale" value={stats?.totalSale} loading={loading} prefix="₹" />
+    <Statistic valueStyle={{ fontSize: '32px' }} title="Total Sold Items" value={stats?.soldCount} loading={loading} />
+    <Statistic valueStyle={{ fontSize: '32px' }} title="Total Unsold Items" value={stats?.unsoldCount} loading={loading} />
+  </div>
+);
 
-function Totals({ stats, loading }) {
-    return (
-        <Card>
-            <Row gutter={[16, 16]}>
-                <Col xs={24} sm={8}>
-                    <Statistic
-                        title="Total Sale"
-                        value={stats?.totalSale}
-                        loading={loading}
-                        prefix="₹"
-                    />
-                </Col>
-                <Col xs={24} sm={8}>
-                    <Statistic
-                        title="Total Sold Items"
-                        value={stats?.soldCount}
-                        loading={loading}
-                    />
-                </Col>
-                <Col xs={24} sm={8}>
-                    <Statistic
-                        title="Total Unsold Items"
-                        value={stats?.unsoldCount}
-                        loading={loading}
-                    />
-                </Col>
-            </Row>
-        </Card>
-    )
-}
+const BarChart = ({ data }) => {
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'No of products per price range' },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        title: { display: true, text: 'Price Range' },
+      },
+      y: {
+        stacked: true,
+        title: { display: true, text: 'Product Count' },
+        ticks: { stepSize: 4 },
+      },
+    },
+    aspectRatio: 1.6,
+  };
 
-function BarChart({ data }) {
-    const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top'
-            },
-            title: {
-                display: true,
-                text: 'No of products per price range'
-            },
-        },
-        scales: {
-            x: {
-                stacked: true,
-                title: {
-                    display: true,
-                    text: 'Price Range'
-                }
-            },
-            y: {
-                stacked: true,
-                title: {
-                    display: true,
-                    text: 'Product Count'
-                },
-                ticks: {
-                    stepSize: 4
-                }
-            }
-        },
-    };
+  const labels = Object.keys(data);
+  const values = Object.values(data);
 
-    const labels = Object.keys(data);
-    const values = Object.values(data);
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: 'No of products per price range',
+        data: values,
+        backgroundColor: 'rgba(0, 105, 100, 0.7)',
+      },
+    ],
+  };
 
-    const chartData = {
-        labels,
-        datasets: [
-            {
-                label: 'No of products per price range',
-                data: values,
-                backgroundColor: 'rgba(0, 105, 100, 0.7)'
-            }
-        ]
-    }
+  return <Bar data={chartData} options={options} style={{ margin: '24px 0', maxWidth: '900px', maxHeight: '500px' }} />;
+};
 
-    return (
-        <Card style={{ marginTop: 16 }}>
-            <div style={{ height: 400 }}>
-                <Bar data={chartData} options={options} />
-            </div>
-        </Card>
-    )
-}
+const PieChart = ({ data }) => {
+  const labels = Object.keys(data);
+  const values = Object.values(data);
 
-function PieChart({ data }) {
-    const labels = Object.keys(data);
-    const values = Object.values(data);
+  const chartData = {
+    labels,
+    datasets: [{ label: '# of Products', data: values }],
+  };
 
-    const chartData = {
-        labels,
-        datasets: [
-            {
-                label: '# of Products',
-                data: values,
-            }
-        ]
-    }
-    return (
-        <Card>
-            <div style={{ height: 400 }}>
-                <Doughnut data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
-            </div>
-        </Card>
-    )
-}
+  return <Doughnut data={chartData} style={{ margin: '24px 0', maxHeight: '400px', maxWidth: '400px' }} />;
+};
+
+export default Stats;
